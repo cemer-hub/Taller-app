@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Panel del Taller</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap');
+
+    :root {
+      --bg:       #0f0f14;
+      --bg2:      #17171f;
+      --bg3:      #1e1e2a;
+      --bg4:      #26263a;
+      --border:   rgba(255,255,255,0.08);
+      --border2:  rgba(255,255,255,0.14);
+      --text:     #e8e6f0;
+      --muted:    #8a889a;
+      --accent:   #7c6fff;
+      --green:    #3ecf8e;
+      --amber:    #f5a623;
+      --red:      #e05c5c;
+      --blue:     #4a9eff;
+      --radius:   10px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+
+    /* ── LOGIN ── */
+    #login-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; gap: 32px; padding: 24px;
+    }
+    #login-screen h1 { font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: -0.5px; }
+    #login-screen p { color: var(--muted); font-size: 13px; text-align: center; }
+    .worker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; width: 100%; max-width: 500px; }
+    .worker-btn {
+      background: var(--bg3); border: 0.5px solid var(--border2); border-radius: var(--radius);
+      padding: 16px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .worker-btn:hover { background: var(--bg4); border-color: var(--accent); }
+    .worker-btn .av { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 500; }
+    .worker-btn .wname { font-size: 13px; font-weight: 500; text-align: center; }
+    .worker-btn .wrol { font-size: 11px; color: var(--muted); text-align: center; }
+
+    /* PIN pad */
+    #pin-screen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 101; gap: 24px; padding: 24px;
+    }
+    #pin-screen.visible { display: flex; }
+    #pin-who { font-family: var(--mono); font-size: 18px; font-weight: 500; }
+    #pin-dots { display: flex; gap: 12px; }
+    .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border2); transition: background 0.15s; }
+    .pin-dot.filled { background: var(--accent); border-color: var(--accent); }
+    .pin-pad { display: grid; grid-template-columns: repeat(3, 64px); gap: 10px; }
+    .pin-key {
+      height: 56px; border-radius: var(--radius); border: 0.5px solid var(--border2);
+      background: var(--bg3); color: var(--text); font-family: var(--mono); font-size: 20px; font-weight: 500;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .pin-key:hover { background: var(--bg4); }
+    .pin-key.del { font-size: 16px; color: var(--muted); }
+    #pin-error { color: var(--red); font-size: 13px; min-height: 18px; }
+    #pin-back { background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; font-family: var(--sans); }
+
+    /* ── MAIN APP ── */
+    #app { display: none; flex-direction: column; min-height: 100%; }
+    #app.visible { display: flex; }
+
+    /* Header */
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 0.5px solid var(--border);
+      background: var(--bg2); position: sticky; top: 0; z-index: 10;
+    }
+    .app-header h1 { font-family: var(--mono); font-size: 15px; font-weight: 500; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .user-chip { display: flex; align-items: center; gap: 7px; background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 20px; padding: 4px 10px 4px 5px; font-size: 12px; }
+    .user-chip .av-sm { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; }
+    #logout-btn { background: none; border: 0.5px solid var(--border2); color: var(--muted); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: var(--sans); }
+    #logout-btn:hover { color: var(--text); border-color: var(--border2); }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 0.5px solid var(--border); background: var(--bg2); }
+    .tab { flex: 1; padding: 11px 0; text-align: center; font-size: 13px; color: var(--muted); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; font-family: var(--sans); transition: color 0.15s; }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; padding: 16px; }
+    .tab-panel.active { display: block; }
+
+    /* Stats */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin-bottom: 16px; }
+    .stat { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+
+    /* Lineas */
+    .lineas { display: grid; gap: 10px; }
+    .linea-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .linea-hdr { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; }
+    .linea-hdr:hover { background: var(--bg3); }
+    .linea-ico { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .linea-info { flex: 1; }
+    .linea-info p { font-size: 13px; font-weight: 500; }
+    .linea-info span { font-size: 11px; color: var(--muted); }
+    .toggle-ic { color: var(--muted); font-size: 18px; transition: transform 0.2s; }
+    .toggle-ic.open { transform: rotate(90deg); }
+
+    /* Operario cards */
+    .op-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; padding: 0 12px 12px; }
+    .op-card { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 13px; }
+    .op-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .av-md { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+    .op-name { font-size: 13px; font-weight: 500; }
+    .op-rol { font-size: 11px; color: var(--muted); }
+    .my-panel-btn { margin-left: auto; font-size: 11px; padding: 4px 9px; border-radius: 6px; border: 0.5px solid var(--border2); background: var(--bg4); color: var(--muted); cursor: pointer; font-family: var(--sans); transition: color 0.15s; }
+    .my-panel-btn:hover { color: var(--text); }
+
+    .field-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 8px 0 3px; }
+    select.sel, input.inp, textarea.txta {
+      width: 100%; padding: 6px 8px; border-radius: 7px;
+      border: 0.5px solid var(--border2); background: var(--bg4);
+      color: var(--text); font-family: var(--sans); font-size: 13px;
+    }
+    select.sel:focus, input.inp:focus, textarea.txta:focus { outline: none; border-color: var(--accent); }
+    textarea.txta { resize: none; height: 44px; }
+    .ot-row { display: flex; gap: 6px; }
+    .ot-row input { flex: 1; }
+    select.prior-sel { font-size: 12px; padding: 6px 6px; border-radius: 7px; border: 0.5px solid var(--border2); background: var(--bg4); color: var(--text); flex-shrink: 0; }
+    .horas-row { display: flex; gap: 6px; align-items: center; }
+    .horas-row input { width: 80px; text-align: center; }
+    .horas-row span { font-size: 12px; color: var(--muted); }
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 9px 0; }
+
+    /* Progress */
+    .prog-wrap { margin-top: 8px; }
+    .prog-info { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; color: var(--muted); }
+    .prog-info strong { color: var(--text); font-weight: 500; }
+    .prog-bg { height: 7px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+    .alerta { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 5px 8px; border-radius: 7px; font-size: 12px; font-weight: 500; }
+    .a-ok   { background: rgba(62,207,142,0.12); color: var(--green); }
+    .a-warn { background: rgba(245,166,35,0.12);  color: var(--amber); }
+    .a-over { background: rgba(224,92,92,0.12);   color: var(--red); }
+    .a-none { background: var(--bg4); color: var(--muted); }
+
+    /* Fichaje */
+    .fich-row { display: flex; gap: 7px; align-items: center; margin-top: 4px; }
+    .btn-fich { font-size: 12px; padding: 5px 11px; border-radius: 7px; border: 0.5px solid; cursor: pointer; font-family: var(--sans); font-weight: 500; transition: opacity 0.15s; }
+    .btn-e { border-color: var(--green); color: var(--green); background: rgba(62,207,142,0.08); }
+    .btn-s { border-color: var(--red);   color: var(--red);   background: rgba(224,92,92,0.08); }
+    .btn-fich:disabled { opacity: 0.3; cursor: default; }
+    .fich-status { font-size: 11px; color: var(--muted); flex: 1; }
+    .hoy-val { font-family: var(--mono); font-size: 13px; color: var(--text); }
+    .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 5px; margin-top: 4px; }
+    .pr-alta  { background: rgba(224,92,92,0.15);   color: var(--red); }
+    .pr-media { background: rgba(245,166,35,0.15);  color: var(--amber); }
+    .pr-baja  { background: rgba(62,207,142,0.15);  color: var(--green); }
+
+    /* ── PANEL PERSONAL ── */
+    #worker-overlay {
+      display: none; position: fixed; inset: 0; background: var(--bg);
+      z-index: 50; overflow-y: auto; padding: 16px;
+    }
+    #worker-overlay.visible { display: block; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 6px 12px; border-radius: 7px; border: 0.5px solid var(--border2); background: var(--bg3); color: var(--muted); cursor: pointer; font-family: var(--sans); margin-bottom: 16px; }
+    .back-btn:hover { color: var(--text); }
+    .worker-hero { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius); margin-bottom: 14px; }
+    .av-lg { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 500; }
+    .worker-hero h2 { font-size: 16px; font-weight: 500; }
+    .worker-hero p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .worker-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px,1fr)); gap: 8px; margin-bottom: 14px; }
+    .wstat { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .wstat .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .wstat .val { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+    .ot-sec-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 10px; }
+    .ot-det { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+    .ot-det-hdr { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .ot-det-name { font-size: 15px; font-weight: 500; font-family: var(--mono); }
+    .ot-det-cli { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .ot-nums { display: flex; gap: 16px; flex-wrap: wrap; }
+    .ot-num .n { font-family: var(--mono); font-size: 18px; font-weight: 500; }
+    .ot-num .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 1px; }
+    .big-bar-bg { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; margin: 10px 0 6px; }
+    .big-bar-fill { height: 100%; border-radius: 5px; transition: width 0.5s; }
+    .ot-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .ot-badge { font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 6px; }
+    .fich-hist { margin-top: 10px; border-top: 0.5px solid var(--border); padding-top: 8px; }
+    .fich-hist-title { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .fich-item { display: flex; gap: 10px; font-size: 12px; color: var(--muted); padding: 3px 0; border-bottom: 0.5px solid var(--border); }
+    .fich-item:last-child { border-bottom: none; }
+    .fich-item span { color: var(--text); font-family: var(--mono); }
+    .empty-ot { text-align: center; color: var(--muted); font-size: 13px; padding: 2rem 0; }
+    .en-curso-badge { font-size: 10px; background: rgba(124,111,255,0.18); color: var(--accent); padding: 2px 7px; border-radius: 5px; font-weight: 500; margin-left: 8px; vertical-align: middle; }
+
+    /* ── RESUMEN SEMANAL ── */
+    .sem-hdr { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .sem-nav { display: flex; align-items: center; gap: 8px; }
+    .nav-btn { font-size: 16px; padding: 2px 9px; border-radius: 7px; border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); cursor: pointer; }
+    .sem-label { font-size: 13px; font-weight: 500; min-width: 190px; text-align: center; font-family: var(--mono); }
+    .exp-btn { font-size: 12px; padding: 6px 13px; border-radius: 7px; border: 0.5px solid var(--border2); background: var(--bg3); color: var(--text); cursor: pointer; font-family: var(--sans); }
+    .exp-btn:hover { background: var(--bg4); }
+    .res-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .res-table th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 6px 8px; border-bottom: 0.5px solid var(--border); font-weight: 400; }
+    .res-table td { padding: 8px 8px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+    .res-table tr:last-child td { border-bottom: none; }
+    .res-table tr:hover td { background: var(--bg3); }
+    .total-row td { font-weight: 500; background: var(--bg3); font-family: var(--mono); }
+    .res-sec { font-size: 12px; font-weight: 500; margin: 16px 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--mono); }
+    .res-block { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 10px; }
+    .empty-msg { text-align: center; color: var(--muted); font-size: 13px; padding: 2rem 0; }
+    .mini-bg { display: inline-block; width: 70px; height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; vertical-align: middle; }
+    .mini-fill { height: 100%; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen">
+  <div>
+    <h1>// panel del taller</h1>
+  </div>
+  <p>Selecciona tu perfil para entrar</p>
+  <div class="worker-grid" id="worker-grid"></div>
+</div>
+
+<!-- ── PIN ── -->
+<div id="pin-screen">
+  <div id="pin-who"></div>
+  <div id="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div id="pin-error"></div>
+  <div class="pin-pad" id="pin-pad"></div>
+  <button id="pin-back" onclick="cancelPin()">← Volver</button>
+</div>
+
+<!-- ── APP ── -->
+<div id="app">
+  <div class="app-header">
+    <h1>// taller</h1>
+    <div class="header-right">
+      <div class="user-chip">
+        <div class="av-sm" id="hdr-av"></div>
+        <span id="hdr-name"></span>
+      </div>
+      <button id="logout-btn" onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="tab-bar"></div>
+
+  <div id="tab-operarios" class="tab-panel active">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="lineas" id="lineas-container"></div>
+  </div>
+
+  <div id="tab-resumen" class="tab-panel">
+    <div class="sem-hdr">
+      <div class="sem-nav">
+        <button class="nav-btn" onclick="cambiarSemana(-1)">‹</button>
+        <span class="sem-label" id="sem-label"></span>
+        <button class="nav-btn" onclick="cambiarSemana(1)">›</button>
+      </div>
+      <button class="exp-btn" onclick="exportarCSV()">Exportar CSV</button>
+    </div>
+    <div id="resumen-content"></div>
+  </div>
+</div>
+
+<!-- ── PANEL PERSONAL ── -->
+<div id="worker-overlay">
+  <button class="back-btn" onclick="cerrarPanel()">← Volver</button>
+  <div id="worker-content"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  DATOS — edita aquí los operarios y PINs
+// ═══════════════════════════════════════
+const LINEAS = [
+  {
+    id: 'metal', nombre: 'Zona de metal', icono: '⚙',
+    bg: 'rgba(74,158,255,0.15)', color: '#4a9eff',
+    operarios: [
+      { id: 'op1', nombre: 'Miguel Sánchez', rol: 'Operario de metal', iniciales: 'MS', pin: '1234', esEncargado: false }
+    ]
+  },
+  {
+    id: 'madera', nombre: 'Sección de madera', icono: '🪵',
+    bg: 'rgba(245,166,35,0.15)', color: '#f5a623',
+    operarios: [
+      { id: 'op2', nombre: 'Carlos Ruiz', rol: 'Carpintero', iniciales: 'CR', pin: '2345', esEncargado: false },
+      { id: 'op3', nombre: 'Antonio López', rol: 'Carpintero', iniciales: 'AL', pin: '3456', esEncargado: false }
+    ]
+  },
+  {
+    id: 'cnc', nombre: 'Sección CNC', icono: '◈',
+    bg: 'rgba(62,207,142,0.15)', color: '#3ecf8e',
+    operarios: [
+      { id: 'op4', nombre: 'Pedro Martínez', rol: 'Operario CNC', iniciales: 'PM', pin: '4567', esEncargado: false }
+    ]
+  },
+  {
+    id: 'instaladores', nombre: 'Equipo instalador', icono: '🚐',
+    bg: 'rgba(124,111,255,0.15)', color: '#7c6fff',
+    operarios: [
+      { id: 'op5', nombre: 'Juan García', rol: 'Instalador (conductor)', iniciales: 'JG', pin: '5678', esEncargado: false },
+      { id: 'op6', nombre: 'Rafael Torres', rol: 'Instalador', iniciales: 'RT', pin: '6789', esEncargado: false }
+    ]
+  }
+];
+
+// Encargado — ve todo el panel
+const ENCARGADO = { id: 'enc', nombre: 'Encargado', rol: 'Gestor', iniciales: 'EN', pin: '0000', esEncargado: true, color: '#e8e6f0', bg: 'rgba(255,255,255,0.1)' };
+
+// ═══════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════
+const STATE = {};
+const todosOps = LINEAS.flatMap(l => l.operarios);
+todosOps.forEach(op => {
+  STATE[op.id] = { estado: 'activo', ot: '', cliente: '', prioridad: 'media', horasEst: 0, nota: '', fichajes: [], entradaActual: null };
+});
+
+let currentUser = null;
+let pinBuffer = '';
+let pinTarget = null;
+let semanaOffset = 0;
+const lineasOpen = {};
+LINEAS.forEach(l => lineasOpen[l.id] = true);
+
+// ═══════════════════════════════════════
+//  UTILIDADES
+// ═══════════════════════════════════════
+function isoDay(d) { return d.toISOString().slice(0, 10); }
+const hoyStr = isoDay(new Date());
+function lunes(d) { const r = new Date(d); const dw = r.getDay(); r.setDate(r.getDate() + (dw === 0 ? -6 : 1 - dw)); r.setHours(0,0,0,0); return r; }
+function semanaActual() { const b = lunes(new Date()); b.setDate(b.getDate() + semanaOffset * 7); return b; }
+function diasSemana(l) { return Array.from({length:5}, (_,i) => { const d = new Date(l); d.setDate(d.getDate()+i); return d; }); }
+function horaActual() { return new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'}); }
+function fmtH(m) { const h = Math.floor(m/60), mn = m%60; return h > 0 ? `${h}h ${String(mn).padStart(2,'0')}m` : `${mn}m`; }
+function totalMinsOp(id) { return STATE[id].fichajes.reduce((a,f)=>a+f.minutos,0) + (STATE[id].entradaActual ? Math.round((new Date()-STATE[id].entradaActual)/60000) : 0); }
+function minsHoy(id) { const s=STATE[id]; return s.fichajes.filter(f=>f.fecha===hoyStr).reduce((a,f)=>a+f.minutos,0)+(s.entradaActual?Math.round((new Date()-s.entradaActual)/60000):0); }
+
+function progInfo(id) {
+  const s = STATE[id]; const est = (s.horasEst||0)*60; const real = totalMinsOp(id);
+  if (!s.ot || est === 0) return null;
+  const pct = Math.min(Math.round((real/est)*100), 150);
+  const rest = est - real;
+  let pCol, aCls, aTxt;
+  if (pct>=100)      { pCol='#e05c5c'; aCls='a-over'; aTxt=`Excedido ${fmtH(Math.abs(rest))}`; }
+  else if (pct>=80)  { pCol='#f5a623'; aCls='a-warn'; aTxt=`Quedan ${fmtH(rest)} · Al límite`; }
+  else               { pCol='#3ecf8e'; aCls='a-ok';   aTxt=`Quedan ${fmtH(rest)} · Al día`; }
+  return { pct, pCol, aCls, aTxt, real, est };
+}
+
+function getOp(id) { return todosOps.find(o=>o.id===id); }
+function getLinea(opId) { return LINEAS.find(l=>l.operarios.some(o=>o.id===opId)); }
+
+// ═══════════════════════════════════════
+//  LOGIN / PIN
+// ═══════════════════════════════════════
+function buildLogin() {
+  const grid = document.getElementById('worker-grid');
+  const todos = [...todosOps, ENCARGADO];
+  grid.innerHTML = todos.map(op => {
+    const linea = LINEAS.find(l => l.operarios.some(o=>o.id===op.id));
+    const col = op.esEncargado ? op.color : linea.color;
+    const bg  = op.esEncargado ? op.bg    : linea.bg;
+    return `<button class="worker-btn" onclick="iniciarPin('${op.id}')">
+      <div class="av" style="background:${bg};color:${col}">${op.iniciales}</div>
+      <div class="wname">${op.nombre.split(' ')[0]}</div>
+      <div class="wrol">${op.rol}</div>
+    </button>`;
+  }).join('');
+}
+
+function iniciarPin(opId) {
+  const op = opId === 'enc' ? ENCARGADO : getOp(opId);
+  pinTarget = op; pinBuffer = '';
+  document.getElementById('pin-who').textContent = op.nombre;
+  document.getElementById('pin-error').textContent = '';
+  actualizarDots();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('pin-screen').classList.add('visible');
+}
+
+function cancelPin() {
+  document.getElementById('pin-screen').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+  pinBuffer = ''; pinTarget = null;
+}
+
+function buildPinPad() {
+  const pad = document.getElementById('pin-pad');
+  const keys = ['1','2','3','4','5','6','7','8','9','←','0','✓'];
+  pad.innerHTML = keys.map(k => {
+    if (k === '←') return `<button class="pin-key del" onclick="pinKey('del')">${k}</button>`;
+    if (k === '✓') return `<button class="pin-key" onclick="pinKey('ok')" style="color:var(--green)">${k}</button>`;
+    return `<button class="pin-key" onclick="pinKey('${k}')">${k}</button>`;
+  }).join('');
+}
+
+function pinKey(v) {
+  if (v === 'del') { pinBuffer = pinBuffer.slice(0,-1); }
+  else if (v === 'ok') { verificarPin(); return; }
+  else if (pinBuffer.length < 4) { pinBuffer += v; }
+  actualizarDots();
+  if (pinBuffer.length === 4) setTimeout(verificarPin, 120);
+}
+
+function actualizarDots() {
+  for (let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled', i < pinBuffer.length);
+}
+
+function verificarPin() {
+  if (pinBuffer === pinTarget.pin) {
+    currentUser = pinTarget;
+    document.getElementById('pin-screen').classList.remove('visible');
+    document.getElementById('login-screen').style.display = 'none';
+    entrarApp();
+  } else {
+    document.getElementById('pin-error').textContent = 'PIN incorrecto';
+    pinBuffer = ''; actualizarDots();
+    setTimeout(()=>{ document.getElementById('pin-error').textContent=''; }, 1500);
+  }
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('worker-overlay').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════
+//  ENTRAR EN APP
+// ═══════════════════════════════════════
+function entrarApp() {
+  const app = document.getElementById('app');
+  app.classList.add('visible');
+
+  // Header avatar
+  const linea = LINEAS.find(l=>l.operarios.some(o=>o.id===currentUser.id));
+  const col = currentUser.esEncargado ? currentUser.color : linea.color;
+  const bg  = currentUser.esEncargado ? currentUser.bg    : linea.bg;
+  document.getElementById('hdr-av').style.background = bg;
+  document.getElementById('hdr-av').style.color = col;
+  document.getElementById('hdr-av').textContent = currentUser.iniciales;
+  document.getElementById('hdr-name').textContent = currentUser.nombre.split(' ')[0];
+
+  // Tabs según rol
+  const tabBar = document.getElementById('tab-bar');
+  if (currentUser.esEncargado) {
+    tabBar.innerHTML = `
+      <button class="tab active" onclick="showTab('operarios',this)">Operarios</button>
+      <button class="tab" onclick="showTab('resumen',this)">Resumen semanal</button>`;
+  } else {
+    tabBar.innerHTML = `
+      <button class="tab active" onclick="showTab('operarios',this)">Panel</button>`;
+    // Abrir directo el panel personal del trabajador
+    setTimeout(()=>abrirPanel(currentUser.id), 100);
+  }
+
+  renderStats(); renderLineas();
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if (id==='resumen') renderResumen();
+}
+
+// ═══════════════════════════════════════
+//  RENDER PRINCIPAL
+// ═══════════════════════════════════════
+function renderStats() {
+  const total   = todosOps.length;
+  const activos = Object.values(STATE).filter(s=>s.estado==='activo').length;
+  const fichando= Object.values(STATE).filter(s=>s.entradaActual!==null).length;
+  const excedidas= todosOps.filter(op=>{const p=progInfo(op.id);return p&&p.pct>=100;}).length;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat"><div class="stat-label">Operarios</div><div class="stat-value">${total}</div></div>
+    <div class="stat"><div class="stat-label">En taller</div><div class="stat-value" style="color:var(--green)">${activos}</div></div>
+    <div class="stat"><div class="stat-label">Fichados</div><div class="stat-value" style="color:var(--accent)">${fichando}</div></div>
+    <div class="stat"><div class="stat-label">OT excedidas</div><div class="stat-value" style="color:var(--red)">${excedidas}</div></div>`;
+}
+
+function renderLineas() {
+  const c = document.getElementById('lineas-container');
+  c.innerHTML = '';
+  LINEAS.forEach(linea => {
+    const activos = linea.operarios.filter(op=>STATE[op.id].estado==='activo').length;
+    const div = document.createElement('div');
+    div.className = 'linea-card';
+    div.innerHTML = `
+      <div class="linea-hdr" onclick="toggleLinea('${linea.id}')">
+        <div class="linea-ico" style="background:${linea.bg}">${linea.icono}</div>
+        <div class="linea-info"><p>${linea.nombre}</p><span>${activos}/${linea.operarios.length} en taller</span></div>
+        <span class="toggle-ic ${lineasOpen[linea.id]?'open':''}" id="tic-${linea.id}">›</span>
+      </div>
+      <div id="lbody-${linea.id}" style="display:${lineasOpen[linea.id]?'block':'none'}">
+        <div class="op-grid">${linea.operarios.map(op=>renderOp(op,linea)).join('')}</div>
+      </div>`;
+    c.appendChild(div);
+  });
+}
+
+function renderOp(op, linea) {
+  const s = STATE[op.id];
+  const fichando = s.entradaActual !== null;
+  const entStr = fichando ? s.entradaActual.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}) : '';
+  const mH = minsHoy(op.id);
+  const prog = progInfo(op.id);
+  const PRIORIDADES = [{val:'alta',label:'Alta',cls:'pr-alta'},{val:'media',label:'Media',cls:'pr-media'},{val:'baja',label:'Baja',cls:'pr-baja'}];
+  const ESTADOS = [{val:'activo',label:'En el taller'},{val:'ausente',label:'Ausente'},{val:'descanso',label:'Descanso'},{val:'vacaciones',label:'Vacaciones'},{val:'fuera',label:'Fuera del taller'}];
+  const pr = PRIORIDADES.find(p=>p.val===s.prioridad)||PRIORIDADES[1];
+
+  let progHtml = '';
+  if (prog) {
+    progHtml = `<div class="prog-wrap">
+      <div class="prog-info"><span>Ejecutado: <strong>${fmtH(prog.real)}</strong> de ${fmtH(prog.est)}</span><span style="font-weight:500">${prog.pct}%</span></div>
+      <div class="prog-bg"><div class="prog-fill" style="width:${Math.min(prog.pct,100)}%;background:${prog.pCol}"></div></div>
+      <div class="alerta ${prog.aCls}">${prog.aTxt}</div></div>`;
+  } else if (s.ot && !s.horasEst) {
+    progHtml = `<div class="alerta a-none">Sin horas estimadas</div>`;
+  }
+
+  const ultF = s.fichajes.filter(f=>f.fecha===hoyStr).slice(-2).reverse();
+
+  return `<div class="op-card">
+    <div class="op-top">
+      <div class="av-md" style="background:${linea.bg};color:${linea.color}">${op.iniciales}</div>
+      <div><div class="op-name">${op.nombre}</div><div class="op-rol">${op.rol}</div></div>
+      <button class="my-panel-btn" onclick="abrirPanel('${op.id}')">Mi panel</button>
+    </div>
+    <div class="field-lbl">Estado</div>
+    <select class="sel" onchange="cambiarEstado('${op.id}',this.value)">
+      ${ESTADOS.map(e=>`<option value="${e.val}" ${s.estado===e.val?'selected':''}>${e.label}</option>`).join('')}
+    </select>
+    <div class="divider"></div>
+    <div class="field-lbl">Orden de trabajo</div>
+    <div class="ot-row">
+      <input class="inp" type="text" placeholder="OT-2024-001" value="${s.ot}" oninput="gc('${op.id}','ot',this.value)">
+      <select class="prior-sel" onchange="gc('${op.id}','prioridad',this.value)">
+        ${PRIORIDADES.map(p=>`<option value="${p.val}" ${s.prioridad===p.val?'selected':''}>${p.label}</option>`).join('')}
+      </select>
+    </div>
+    ${s.ot?`<span class="badge ${pr.cls}">${pr.label}</span>`:''}
+    <div class="field-lbl">Cliente / proyecto</div>
+    <input class="inp" type="text" placeholder="Nombre del cliente" value="${s.cliente}" oninput="gc('${op.id}','cliente',this.value)">
+    <div class="field-lbl">Horas estimadas</div>
+    <div class="horas-row">
+      <input class="inp" type="number" min="0" step="0.5" placeholder="0" value="${s.horasEst||''}" oninput="gc('${op.id}','horasEst',this.value)">
+      <span>horas</span>
+    </div>
+    ${progHtml}
+    <div class="divider"></div>
+    <div class="field-lbl">Fichaje</div>
+    <div class="fich-row">
+      <button class="btn-fich btn-e" onclick="fichar('${op.id}','entrada')" ${fichando?'disabled':''}>Entrada</button>
+      <button class="btn-fich btn-s" onclick="fichar('${op.id}','salida')"  ${!fichando?'disabled':''}>Salida</button>
+      <span class="fich-status">${fichando?`Desde ${entStr}`:(mH>0?'':'Sin fichar')}</span>
+      ${mH>0?`<span class="hoy-val">${fmtH(mH)}</span>`:''}
+    </div>
+    ${ultF.length?`<div style="margin-top:6px;font-size:11px;color:var(--muted)">${ultF.map(f=>`${f.entrada}–${f.salida} · ${fmtH(f.minutos)}`).join('<br>')}</div>`:''}
+    <div class="field-lbl">Observaciones</div>
+    <textarea class="txta" placeholder="Incidencias, materiales..." oninput="gc('${op.id}','nota',this.value)">${s.nota}</textarea>
+  </div>`;
+}
+
+// ═══════════════════════════════════════
+//  ACCIONES
+// ═══════════════════════════════════════
+function toggleLinea(id) {
+  lineasOpen[id] = !lineasOpen[id];
+  document.getElementById('lbody-'+id).style.display = lineasOpen[id]?'block':'none';
+  document.getElementById('tic-'+id).classList.toggle('open', lineasOpen[id]);
+}
+
+function cambiarEstado(opId,v) { STATE[opId].estado=v; renderStats(); renderLineas(); }
+function gc(opId,campo,valor) {
+  STATE[opId][campo] = campo==='horasEst'?parseFloat(valor)||0:valor;
+  renderStats(); renderLineas();
+}
+
+function fichar(opId,tipo) {
+  const s=STATE[opId]; const ahora=new Date();
+  if(tipo==='entrada'){if(s.entradaActual)return;s.entradaActual=ahora;}
+  else{
+    if(!s.entradaActual)return;
+    const mins=Math.round((ahora-s.entradaActual)/60000);
+    s.fichajes.push({fecha:isoDay(ahora),ot:s.ot||'Sin OT',cliente:s.cliente||'',entrada:s.entradaActual.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),salida:ahora.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),minutos:mins});
+    s.entradaActual=null;
+  }
+  renderStats(); renderLineas();
+}
+
+// ═══════════════════════════════════════
+//  PANEL PERSONAL DEL TRABAJADOR
+// ═══════════════════════════════════════
+function abrirPanel(opId) {
+  document.getElementById('worker-overlay').classList.add('visible');
+  renderPanel(opId);
+}
+function cerrarPanel() {
+  document.getElementById('worker-overlay').classList.remove('visible');
+}
+
+function renderPanel(opId) {
+  const s=STATE[opId]; const op=getOp(opId); const linea=getLinea(opId);
+
+  const byOT={};
+  s.fichajes.forEach(f=>{
+    const k=f.ot||'Sin OT';
+    if(!byOT[k]) byOT[k]={cliente:f.cliente,fichajes:[],total:0};
+    byOT[k].fichajes.push(f); byOT[k].total+=f.minutos;
+  });
+  if(s.entradaActual){
+    const k=s.ot||'Sin OT'; const ec=Math.round((new Date()-s.entradaActual)/60000);
+    if(!byOT[k]) byOT[k]={cliente:s.cliente,fichajes:[],total:0};
+    byOT[k].total+=ec; byOT[k].enCurso=ec; byOT[k].cliente=s.cliente;
+  }
+
+  const totalMins=Object.values(byOT).reduce((a,v)=>a+v.total,0);
+  const estMins=(s.horasEst||0)*60;
+  const otCount=Object.keys(byOT).length;
+
+  let statsHtml=`<div class="worker-stats">
+    <div class="wstat"><div class="lbl">Horas totales</div><div class="val">${fmtH(totalMins)}</div></div>
+    <div class="wstat"><div class="lbl">OT activas</div><div class="val">${otCount}</div></div>
+    <div class="wstat"><div class="lbl">Hoy</div><div class="val">${fmtH(minsHoy(opId))}</div></div>
+    ${estMins>0?`<div class="wstat"><div class="lbl">Estimado OT</div><div class="val">${fmtH(estMins)}</div></div>`:''}
+  </div>`;
+
+  let otHtml='';
+  if(!Object.keys(byOT).length){
+    otHtml=`<div class="empty-ot">Sin fichajes registrados aún.<br>Pulsa Entrada para empezar.</div>`;
+  } else {
+    Object.entries(byOT).forEach(([otNombre,data])=>{
+      const est=otNombre===s.ot?estMins:0;
+      const pct=est>0?Math.min(Math.round((data.total/est)*100),150):null;
+      let barCol='#4a9eff',badgeCls='a-none',badgeTxt='Sin estimación';
+      if(pct!==null){
+        if(pct>=100){barCol='#e05c5c';badgeCls='a-over';badgeTxt='Tiempo excedido';}
+        else if(pct>=80){barCol='#f5a623';badgeCls='a-warn';badgeTxt='Al límite';}
+        else{barCol='#3ecf8e';badgeCls='a-ok';badgeTxt='Al día';}
+      }
+      const barW=pct!==null?Math.min(pct,100):0;
+      const ecBadge=data.enCurso?`<span class="en-curso-badge">en curso</span>`:'';
+      const ultF=data.fichajes.slice(-5).reverse();
+
+      otHtml+=`<div class="ot-det">
+        <div class="ot-det-hdr">
+          <div>
+            <div class="ot-det-name">${otNombre}${ecBadge}</div>
+            ${data.cliente?`<div class="ot-det-cli">${data.cliente}</div>`:''}
+          </div>
+          <div class="ot-nums">
+            <div class="ot-num"><div class="n">${fmtH(data.total)}</div><div class="l">Ejecutado</div></div>
+            ${est>0?`<div class="ot-num"><div class="n">${fmtH(est)}</div><div class="l">Estimado</div></div>`:''}
+            ${pct!==null?`<div class="ot-num"><div class="n" style="color:${barCol}">${pct}%</div><div class="l">Avance</div></div>`:''}
+          </div>
+        </div>
+        ${est>0?`
+          <div class="big-bar-bg"><div class="big-bar-fill" style="width:${barW}%;background:${barCol}"></div></div>
+          <div class="ot-footer">
+            <span class="ot-badge ${badgeCls}">${badgeTxt}</span>
+            ${pct<100?`<span style="font-size:12px;color:var(--muted)">Quedan ${fmtH(est-data.total)}</span>`:pct>=100?`<span style="font-size:12px;color:var(--red)">Excedido ${fmtH(data.total-est)}</span>`:''}
+          </div>`:`<div class="alerta a-none" style="margin-top:0">Sin estimación de horas</div>`}
+        ${ultF.length?`<div class="fich-hist">
+          <div class="fich-hist-title">Últimos registros</div>
+          ${ultF.map(f=>`<div class="fich-item"><span>${f.fecha}</span>${f.entrada} – ${f.salida}<span>${fmtH(f.minutos)}</span></div>`).join('')}
+        </div>`:''}
+      </div>`;
+    });
+  }
+
+  document.getElementById('worker-content').innerHTML=`
+    <div class="worker-hero">
+      <div class="av-lg" style="background:${linea.bg};color:${linea.color}">${op.iniciales}</div>
+      <div><h2>${op.nombre}</h2><p>${op.rol} · ${linea.nombre}</p></div>
+    </div>
+    ${statsHtml}
+    <div class="ot-sec-title">Órdenes de trabajo</div>
+    ${otHtml}`;
+}
+
+// ═══════════════════════════════════════
+//  RESUMEN SEMANAL
+// ═══════════════════════════════════════
+function cambiarSemana(dir) { semanaOffset+=dir; renderResumen(); }
+
+function renderResumen() {
+  const lunDate=semanaActual(); const dias=diasSemana(lunDate);
+  document.getElementById('sem-label').textContent=`${dias[0].toLocaleDateString('es-ES',{day:'numeric',month:'short'})} – ${dias[4].toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'})}`;
+  const diasStr=dias.map(d=>isoDay(d));
+  const diasLbl=dias.map(d=>d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric'}));
+  const c=document.getElementById('resumen-content');
+
+  const byOT={};
+  LINEAS.forEach(l=>l.operarios.forEach(op=>{
+    const s=STATE[op.id];
+    s.fichajes.filter(f=>diasStr.includes(f.fecha)).forEach(f=>{
+      const k=f.ot||'Sin OT';
+      if(!byOT[k]) byOT[k]={cliente:f.cliente,estMins:0,operarios:{}};
+      if(!byOT[k].operarios[op.nombre]) byOT[k].operarios[op.nombre]={dias:{},total:0};
+      byOT[k].operarios[op.nombre].dias[f.fecha]=(byOT[k].operarios[op.nombre].dias[f.fecha]||0)+f.minutos;
+      byOT[k].operarios[op.nombre].total+=f.minutos;
+    });
+    if(s.ot&&byOT[s.ot]) byOT[s.ot].estMins=(s.horasEst||0)*60;
+  }));
+
+  if(!Object.keys(byOT).length){c.innerHTML=`<div class="empty-msg">Sin fichajes esta semana.</div>`;return;}
+
+  let html='';
+  Object.entries(byOT).forEach(([ot,data])=>{
+    const totOT=Object.values(data.operarios).reduce((a,o)=>a+o.total,0);
+    const est=data.estMins; const pct=est>0?Math.min(Math.round((totOT/est)*100),150):null;
+    let bc='#4a9eff'; if(pct>=100)bc='#e05c5c'; else if(pct>=80)bc='#f5a623';
+    html+=`<div class="res-sec">${ot}${data.cliente?` <span style="font-weight:400;color:var(--muted);font-size:11px">${data.cliente}</span>`:''}
+      <span style="font-weight:400;font-size:11px;color:var(--muted)">Ejecutado: ${fmtH(totOT)}</span>
+      ${est>0?`<span style="font-weight:400;font-size:11px;color:var(--muted)">/ Est: ${fmtH(est)}</span>
+      <span class="mini-bg"><span class="mini-fill" style="width:${Math.min(pct,100)}%;background:${bc};display:block;height:100%"></span></span>
+      <span style="font-size:11px;font-weight:500;color:${bc}">${pct}%</span>`:''}
+    </div>
+    <div class="res-block"><table class="res-table">
+      <thead><tr><th>Operario</th>${diasLbl.map(d=>`<th>${d}</th>`).join('')}<th>Total</th>${est>0?`<th>%</th>`:''}</tr></thead>
+      <tbody>`;
+    const totD={}; diasStr.forEach(d=>totD[d]=0); let totG=0;
+    Object.entries(data.operarios).forEach(([n,info])=>{
+      html+=`<tr><td>${n}</td>`;
+      diasStr.forEach(d=>{const m=info.dias[d]||0;totD[d]+=m;html+=`<td style="font-family:var(--mono)">${m?fmtH(m):'<span style="color:var(--muted)">—</span>'}</td>`;});
+      totG+=info.total;
+      const pp=est>0?Math.round((info.total/est)*100):null;
+      html+=`<td style="font-family:var(--mono)">${fmtH(info.total)}</td>`;
+      if(est>0) html+=`<td style="font-family:var(--mono);color:${pp>=100?'#e05c5c':pp>=80?'#f5a623':'#3ecf8e'}">${pp}%</td>`;
+      html+=`</tr>`;
+    });
+    html+=`<tr class="total-row"><td>Total</td>${diasStr.map(d=>`<td>${totD[d]?fmtH(totD[d]):'—'}</td>`).join('')}<td>${fmtH(totG)}</td>${est>0?`<td style="color:${Math.round(totG/est*100)>=100?'#e05c5c':Math.round(totG/est*100)>=80?'#f5a623':'#3ecf8e'}">${Math.round(totG/est*100)}%</td>`:''}</tr>`;
+    html+=`</tbody></table></div>`;
+  });
+  c.innerHTML=html;
+}
+
+function exportarCSV() {
+  const lunDate=semanaActual(); const dias=diasSemana(lunDate);
+  const diasStr=dias.map(d=>isoDay(d)); const diasLbl=dias.map(d=>d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric'}));
+  let csv='OT;Cliente;Operario;'+diasLbl.join(';')+';Total horas;Horas estimadas;% ejecutado\n';
+  const byOT={};
+  LINEAS.forEach(l=>l.operarios.forEach(op=>{
+    const s=STATE[op.id];
+    s.fichajes.filter(f=>diasStr.includes(f.fecha)).forEach(f=>{
+      const k=f.ot||'Sin OT';
+      if(!byOT[k]) byOT[k]={cliente:f.cliente,estMins:(s.horasEst||0)*60,operarios:{}};
+      if(!byOT[k].operarios[op.nombre]) byOT[k].operarios[op.nombre]={dias:{},total:0};
+      byOT[k].operarios[op.nombre].dias[f.fecha]=(byOT[k].operarios[op.nombre].dias[f.fecha]||0)+f.minutos;
+      byOT[k].operarios[op.nombre].total+=f.minutos;
+    });
+  }));
+  Object.entries(byOT).forEach(([ot,data])=>{
+    Object.entries(data.operarios).forEach(([n,info])=>{
+      const cols=diasStr.map(d=>info.dias[d]?(info.dias[d]/60).toFixed(2):'0');
+      const pct=data.estMins>0?Math.round((info.total/data.estMins)*100):'';
+      csv+=`${ot};${data.cliente};${n};${cols.join(';')};${(info.total/60).toFixed(2)};${data.estMins>0?(data.estMins/60).toFixed(1):''};${pct?pct+'%':''}\n`;
+    });
+  });
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'})); a.download='resumen_taller.csv'; a.click();
+}
+
+// ── INIT ──
+buildLogin();
+buildPinPad();
+</script>
+</body>
+</html>
